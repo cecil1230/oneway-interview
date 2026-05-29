@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>单向视频面试</title>
+<script src="https://gosspublic.alicdn.com/aliyun-oss-sdk-6.18.0.min.js"></script>
+<style>
+  /* ===== Reset & Base ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f0f4f8; color: #1a2332; line-height: 1.6;
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+  /* ===== Header ===== */
+  header {
+    background: linear-gradient(135deg, #1a2332 0%, #2d3b4f 100%);
+    color: #fff; padding: 1rem 1.5rem; display: flex; align-items: center;
+    justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+  }
+  header h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.5px; }
+  header .badge {
+    font-size: 0.75rem; background: rgba(255,255,255,0.15);
+    padding: 0.25rem 0.75rem; border-radius: 999px;
+  }
+  /* ===== Container ===== */
+  .container { flex: 1; max-width: 840px; width: 100%; margin: 2rem auto; padding: 0 1rem; }
+  /* ===== Card ===== */
+  .card {
+    background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    padding: 2rem; margin-bottom: 1.5rem;
+  }
+  .card h2 { font-size: 1.35rem; margin-bottom: 0.5rem; }
+  .card p { color: #5a6a7e; font-size: 0.95rem; }
+  /* ===== Steps indicator ===== */
+  .steps { display: flex; gap: 0.5rem; margin-bottom: 2rem; }
+  .step {
+    flex: 1; text-align: center; padding: 0.6rem 0.25rem;
+    border-radius: 8px; font-size: 0.85rem; font-weight: 500;
+    background: #e2e8f0; color: #7a8a9e; transition: all 0.3s;
+  }
+  .step.active { background: #1a2332; color: #fff; }
+  .step.done { background: #10b981; color: #fff; }
+  .step .num {
+    display: inline-block; width: 22px; height: 22px; line-height: 22px;
+    border-radius: 50%; text-align: center; font-size: 0.75rem;
+    margin-right: 6px; background: rgba(0,0,0,0.12);
+  }
+  .step.active .num, .step.done .num { background: rgba(255,255,255,0.2); }
+  /* ===== Buttons ===== */
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.7rem 1.8rem; border: none; border-radius: 8px;
+    font-size: 0.95rem; font-weight: 500; cursor: pointer;
+    transition: all 0.2s; text-decoration: none;
+  }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-primary { background: #1a2332; color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #2d3b4f; }
+  .btn-secondary { background: #e2e8f0; color: #1a2332; }
+  .btn-secondary:hover:not(:disabled) { background: #cbd5e1; }
+  .btn-success { background: #10b981; color: #fff; }
+  .btn-success:hover:not(:disabled) { background: #059669; }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .btn-danger:hover:not(:disabled) { background: #dc2626; }
+  .btn-outline {
+    background: transparent; border: 2px solid #1a2332; color: #1a2332;
+  }
+  .btn-outline:hover:not(:disabled) { background: #1a2332; color: #fff; }
+  .btn-sm { padding: 0.4rem 1rem; font-size: 0.85rem; }
+  /* ===== Form ===== */
+  .form-group { margin-bottom: 1.2rem; }
+  .form-group label { display: block; font-weight: 500; margin-bottom: 0.35rem; font-size: 0.95rem; }
+  .form-group input, .form-group select {
+    width: 100%; padding: 0.7rem 1rem; border: 1.5px solid #d1d9e6;
+    border-radius: 8px; font-size: 0.95rem; transition: border 0.2s;
+    background: #fff;
+  }
+  .form-group input:focus, .form-group select:focus {
+    outline: none; border-color: #1a2332; box-shadow: 0 0 0 3px rgba(26,35,50,0.1);
+  }
+  /* ===== Video Preview ===== */
+  .video-box {
+    position: relative; width: 100%; border-radius: 10px; overflow: hidden;
+    background: #000; margin: 1rem 0;
+  }
+  .video-box video {
+    width: 100%; display: block; background: #000;
+    max-height: 480px; object-fit: contain;
+  }
+  .video-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    padding: 1.5rem 1rem 0.75rem; color: #fff; text-align: center;
+  }
+  .timer {
+    font-size: 2.5rem; font-weight: 700; font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+  }
+  .timer.warning { color: #f59e0b; }
+  .timer.danger { color: #ef4444; animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .current-q {
+    position: absolute; top: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.65); padding: 0.75rem 1rem;
+    color: #fff; font-size: 0.9rem; text-align: center;
+  }
+  /* ===== Status indicator ===== */
+  .status-dot {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    margin-right: 6px;
+  }
+  .status-dot.green { background: #10b981; }
+  .status-dot.red { background: #ef4444; }
+  .status-dot.yellow { background: #f59e0b; }
+  /* ===== Question list ===== */
+  .question-item {
+    background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px;
+    padding: 1rem 1.2rem; margin-bottom: 0.75rem;
+    display: flex; align-items: flex-start; gap: 1rem;
+    transition: all 0.2s;
+  }
+  .question-item.done { border-color: #10b981; background: #f0fdf4; }
+  .question-item.active-q { border-color: #1a2332; background: #eef2f7; }
+  .question-item .q-num {
+    width: 32px; height: 32px; flex-shrink: 0;
+    border-radius: 50%; background: #e2e8f0; color: #5a6a7e;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 0.85rem;
+  }
+  .question-item.done .q-num { background: #10b981; color: #fff; }
+  .question-item.active-q .q-num { background: #1a2332; color: #fff; }
+  .question-item .q-body { flex: 1; }
+  .question-item .q-text { font-weight: 500; margin-bottom: 0.2rem; }
+  .question-item .q-meta { font-size: 0.8rem; color: #7a8a9e; }
+  .question-item .q-status {
+    flex-shrink: 0; font-size: 0.8rem; font-weight: 500;
+    color: #7a8a9e; margin-top: 0.2rem;
+  }
+  .question-item.done .q-status { color: #10b981; }
+  .question-item.active-q .q-status { color: #1a2332; }
+  /* ===== Review items ===== */
+  .review-item {
+    border: 1.5px solid #e2e8f0; border-radius: 10px; overflow: hidden;
+    margin-bottom: 1rem;
+  }
+  .review-item video { width: 100%; display: block; max-height: 400px; background: #000; }
+  .review-item .review-meta {
+    padding: 0.75rem 1rem; background: #f8fafc;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 0.5rem;
+  }
+  /* ===== Camera check ===== */
+  .check-grid { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1rem 0; }
+  .check-item {
+    flex: 1; min-width: 140px; padding: 0.75rem 1rem;
+    border: 1.5px solid #e2e8f0; border-radius: 8px; text-align: center;
+  }
+  .check-item .icon { font-size: 1.8rem; margin-bottom: 0.25rem; }
+  .check-item .label { font-size: 0.85rem; color: #5a6a7e; }
+  .check-item .status-text { font-weight: 600; font-size: 0.9rem; }
+  /* ===== Hidden sections ===== */
+  .section { display: none; }
+  .section.active { display: block; }
+  /* ===== Prep countdown ===== */
+  .prep-countdown {
+    text-align: center; padding: 3rem 1rem;
+  }
+  .prep-countdown .big-num {
+    font-size: 4rem; font-weight: 800; color: #1a2332;
+    font-variant-numeric: tabular-nums;
+  }
+  .prep-countdown p { font-size: 1rem; color: #5a6a7e; margin-top: 0.5rem; }
+  /* ===== Review ===== */
+  .prep-box {
+    background: #fef3c7; border: 1.5px solid #f59e0b; border-radius: 8px;
+    padding: 1rem; margin: 1rem 0; font-size: 0.9rem; color: #92400e;
+  }
+  /* ===== Toast / Alert ===== */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: #1a2332; color: #fff; padding: 0.8rem 1.8rem;
+    border-radius: 10px; font-size: 0.9rem; z-index: 999;
+    opacity: 0; transition: opacity 0.3s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  /* ===== Mobile / Responsive ===== */
+  @media (max-width: 600px) {
+    .container { margin: 1rem auto; }
+    .card { padding: 1.25rem; }
+    header h1 { font-size: 1rem; }
+    .steps { font-size: 0.75rem; gap: 0.25rem; }
+    .step .num { width: 18px; height: 18px; line-height: 18px; font-size: 0.65rem; margin-right: 3px; }
+    .timer { font-size: 2rem; }
+    .prep-countdown .big-num { font-size: 3rem; }
+    .btn { width: 100%; justify-content: center; }
+    .btn-group { flex-direction: column; }
+    .check-grid { flex-direction: column; }
+  }
+  .btn-group { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
+  .collapse { display: none; }
+  .collapse.open { display: block; }
+  .oss-config-toggle {
+    cursor: pointer; background: #f8fafc; border: 1.5px dashed #cbd5e1;
+    border-radius: 8px; padding: 0.6rem 1rem; margin-top: 1rem;
+    font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;
+    transition: all 0.2s;
+  }
+  .oss-config-toggle:hover { border-color: #1a2332; background: #eef2f7; }
+  .oss-config { border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 1rem; margin-top: 0.5rem; background: #fafcff; }
+  .oss-status { font-size: 0.85rem; padding: 0.5rem 0.75rem; border-radius: 6px; margin-top: 0.5rem; }
+  .oss-status.ok { background: #f0fdf4; color: #065f46; border: 1px solid #10b981; }
+  .oss-status.err { background: #fef2f2; color: #991b1b; border: 1px solid #ef4444; }
+  .oss-progress {
+    margin: 1rem 0; background: #e2e8f0; border-radius: 999px; height: 8px; overflow: hidden;
+  }
+  .oss-progress-bar {
+    height: 100%; background: linear-gradient(90deg, #10b981, #059669);
+    border-radius: 999px; transition: width 0.3s; width: 0%;
+  }
+  .password-toggle {
+    position: relative; display: flex; align-items: center;
+  }
+  .password-toggle input { padding-right: 2.5rem; }
+  .password-toggle .toggle-eye {
+    position: absolute; right: 0.75rem; cursor: pointer; user-select: none;
+    color: #7a8a7e; font-size: 0.9rem;
+  }
+  .mt-1 { margin-top: 1rem; }
+  .mt-2 { margin-top: 2rem; }
+  .mb-1 { margin-bottom: 1rem; }
+  .text-center { text-align: center; }
+  .text-muted { color: #7a8a7e; font-size: 0.85rem; }
+  .flex-center { display: flex; align-items: center; gap: 0.5rem; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎥 单向视频面试</h1>
+  <span class="badge" id="stepLabel">准备阶段</span>
+</header>
+
+<div class="container">
+
+  <!-- ========== Step Progress ========== -->
+  <div class="steps" id="stepBar">
+    <div class="step active" data-step="0"><span class="num">1</span>准备</div>
+    <div class="step" data-step="1"><span class="num">2</span>面试</div>
+    <div class="step" data-step="2"><span class="num">3</span>回顾</div>
+    <div class="step" data-step="3"><span class="num">4</span>完成</div>
+  </div>
+
+  <!-- ========== SECTION 0: Setup ========== -->
+  <div class="section active card" id="secSetup">
+    <h2>📋 面试准备</h2>
+    <p>请确保摄像头和麦克风正常工作，然后填写基本信息开始面试。</p>
+
+    <div class="form-group" style="margin-top:1.2rem">
+      <label for="candidateName">你的姓名 *</label>
+      <input type="text" id="candidateName" placeholder="请输入姓名" autocomplete="name">
+    </div>
+    <div class="form-group">
+      <label for="candidateEmail">邮箱（可选）</label>
+      <input type="email" id="candidateEmail" placeholder="example@email.com" autocomplete="email">
+    </div>
+
+    <!-- Camera / Mic Check -->
+    <div class="video-box" id="setupVideoBox" style="display:none">
+      <video id="setupVideo" muted playsinline></video>
+    </div>
+    <div class="check-grid">
+      <div class="check-item" id="camCheck">
+        <div class="icon">📷</div>
+        <div class="label">摄像头</div>
+        <div class="status-text" style="color:#7a8a7e">检测中...</div>
+      </div>
+      <div class="check-item" id="micCheck">
+        <div class="icon">🎤</div>
+        <div class="label">麦克风</div>
+        <div class="status-text" style="color:#7a8a7e">检测中...</div>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-secondary" id="btnCheckDevices">🔍 检测设备</button>
+      <button class="btn btn-primary" id="btnStartInterview" disabled>开始面试 →</button>
+    </div>
+
+    <!-- OSS Config (Collapsible) -->
+    <div class="oss-config-toggle" id="ossToggle">
+      <span>☁️</span>
+      <span>配置阿里云 OSS 自动上传（可选）</span>
+      <span style="margin-left:auto;font-size:0.8rem">展开 ▾</span>
+    </div>
+    <div class="collapse" id="ossConfigPanel">
+      <div class="oss-config">
+        <p style="font-size:0.85rem;color:#5a6a7e;margin-bottom:0.75rem">
+          配置后，录制完成的视频将自动上传到你的阿里云 OSS。
+          建议使用 <strong>仅具有 PutObject 权限的 RAM 子账号</strong>。
+        </p>
+        <div class="form-group">
+          <label for="ossBucket">Bucket 名称</label>
+          <input type="text" id="ossBucket" placeholder="my-interview-videos">
+        </div>
+        <div class="form-group">
+          <label for="ossRegion">Region（地域）</label>
+          <input type="text" id="ossRegion" placeholder="oss-cn-hangzhou">
+        </div>
+        <div class="form-group">
+          <label for="ossAccessKeyId">AccessKey ID</label>
+          <input type="text" id="ossAccessKeyId" placeholder="LTAI...">
+        </div>
+        <div class="form-group">
+          <label for="ossAccessKeySecret">AccessKey Secret</label>
+          <div class="password-toggle">
+            <input type="password" id="ossAccessKeySecret" placeholder="...">
+            <span class="toggle-eye" id="ossToggleSecret">👁️</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="ossPrefix">上传路径前缀（可选）</label>
+          <input type="text" id="ossPrefix" placeholder="interviews/">
+        </div>
+        <button class="btn btn-secondary btn-sm" id="btnTestOSS">🔗 测试连接</button>
+        <div id="ossTestResult"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SECTION 1: Interview ========== -->
+  <div class="section card" id="secInterview" style="padding:0; overflow:hidden">
+    <!-- Question list sidebar -->
+    <div style="padding:1.25rem 1.25rem 0">
+      <h2 style="font-size:1.1rem; margin-bottom:0.25rem">🎙️ 视频面试</h2>
+      <p style="font-size:0.85rem; color:#5a6a7e">阅读题目 → 准备 → 自动录制 → 下一题</p>
+    </div>
+
+    <div id="questionList" style="padding:0.75rem 1.25rem">
+      <!-- populated by JS -->
+    </div>
+
+    <!-- Recording area -->
+    <div style="padding:0 1.25rem 1.25rem">
+      <div class="video-box" id="recordingVideoBox">
+        <div class="current-q" id="currentQText">准备开始...</div>
+        <video id="recordingVideo" muted playsinline></video>
+        <div class="video-overlay" id="recordingOverlay">
+          <div class="timer" id="recTimer">00:00</div>
+        </div>
+      </div>
+
+      <!-- Prep countdown (shown between questions) -->
+      <div id="prepPhase" class="prep-box">
+        <div class="flex-center" style="justify-content:center; gap:0.75rem">
+          <span>⏳</span>
+          <span>准备时间：<strong id="prepCountdown">30</strong> 秒</span>
+        </div>
+        <div style="text-align:center; margin-top:0.5rem; font-size:0.85rem">
+          阅读题目并组织思路，倒计时结束后自动开始录制
+        </div>
+      </div>
+
+      <div id="recordingPhase" class="hidden">
+        <div class="prep-box" style="background:#f0fdf4; border-color:#10b981; color:#065f46">
+          🔴 <strong>录制中...</strong> 请面向摄像头清晰作答
+        </div>
+      </div>
+
+      <div id="actionPhase">
+        <div class="btn-group">
+          <button class="btn btn-primary" id="btnStartRec">▶ 开始回答</button>
+          <button class="btn btn-secondary hidden" id="btnNextQuestion">下一题 →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SECTION 2: Review ========== -->
+  <div class="section card" id="secReview">
+    <h2>👀 回顾你的回答</h2>
+    <p>预览每个回答，可以重录不满意的题目。</p>
+    <div id="reviewList" class="mt-1">
+      <!-- populated by JS -->
+    </div>
+    <div class="btn-group mt-2">
+      <button class="btn btn-secondary" id="btnReRecord">↩ 返回重录</button>
+      <button class="btn btn-success" id="btnSubmit">✅ 提交所有回答</button>
+    </div>
+  </div>
+
+  <!-- ========== SECTION 3: Complete ========== -->
+  <div class="section card" id="secComplete">
+    <div class="text-center" style="padding:1.5rem 0">
+      <div style="font-size:4rem; margin-bottom:0.5rem">🎉</div>
+      <h2>面试完成！</h2>
+      <p>你的回答已全部录制完毕。</p>
+    </div>
+    <div id="completeSummary" class="mt-2"></div>
+    <div id="ossUploadArea" class="hidden mt-2">
+      <div style="background:#f0fdf4; border:1.5px solid #10b981; border-radius:10px; padding:1rem">
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem">
+          <span>☁️</span>
+          <strong>正在上传到阿里云 OSS...</strong>
+        </div>
+        <div class="oss-progress">
+          <div class="oss-progress-bar" id="ossProgressBar"></div>
+        </div>
+        <div id="ossUploadStatus" style="font-size:0.85rem; color:#065f46">准备中...</div>
+      </div>
+    </div>
+    <div id="ossResultArea" class="hidden mt-2">
+      <div style="background:#f0fdf4; border:1.5px solid #10b981; border-radius:10px; padding:1rem">
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem">
+          <span>✅</span>
+          <strong>OSS 上传完成</strong>
+        </div>
+        <div id="ossUrls" style="font-size:0.85rem; word-break:break-all"></div>
+        <button class="btn btn-sm btn-secondary mt-1" id="btnCopyUrls">📋 复制所有 OSS 链接</button>
+      </div>
+    </div>
+    <div class="btn-group mt-2">
+      <button class="btn btn-primary" id="btnUploadOSS">☁️ 上传到阿里云 OSS</button>
+      <button class="btn btn-primary" id="btnDownloadAll">⬇ 下载所有视频</button>
+      <button class="btn btn-outline" id="btnReset">🔄 重新面试</button>
+    </div>
+    <div class="prep-box mt-2" style="background:#eef2f7; border-color:#cbd5e1; color:#1a2332">
+      💡 视频文件存储在浏览器内存中。关闭页面后数据将丢失，
+      请 <strong>下载保存</strong> 或 <strong>上传到 OSS</strong>。
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ========================
+// Config
+// ========================
+const QUESTIONS = [
+  { text: 'Please introduce yourself in 30 seconds.', prep: 30, duration: 30 },
+  { text: 'The program offers two tracks: Computer Intelligent Control and Biopharmaceutical System Design. Which track interests you more? And why? (2 minutes at most)', prep: 30, duration: 120 },
+  { text: 'What specific aspect of that field do you hope to explore during the 3-week program? (2 minutes at most)', prep: 30, duration: 120 },
+  { text: "What's your expectation to the Camp itself? (2 minutes at most)", prep: 30, duration: 120 }
+];
+
+// ========================
+// State
+// ========================
+const state = {
+  step: 0,
+  name: '',
+  email: '',
+  stream: null,
+  recorder: null,
+  recordings: [],        // [{blob, url, question, questionIdx, duration}]
+  recordedChunks: [],
+  currentQIdx: 0,
+  isRecording: false,
+  mediaRecorder: null,
+  isPrepping: false,
+  prepTimerId: null,
+  recTimerId: null,
+  prepSecondsLeft: 0,
+  recSecondsLeft: 0,
+  micMuted: false,
+  ossClient: null,
+  ossConfigured: false,
+  ossUploading: false,
+};
+
+// DOM refs
+const $ = id => document.getElementById(id);
+const el = {
+  stepLabel: $('stepLabel'),
+  steps: document.querySelectorAll('.step'),
+  sections: document.querySelectorAll('.section'),
+
+  // Setup
+  candidateName: $('candidateName'),
+  candidateEmail: $('candidateEmail'),
+  setupVideoBox: $('setupVideoBox'),
+  setupVideo: $('setupVideo'),
+  camCheck: $('camCheck'),
+  micCheck: $('micCheck'),
+  btnCheckDevices: $('btnCheckDevices'),
+  btnStartInterview: $('btnStartInterview'),
+
+  // Interview
+  questionList: $('questionList'),
+  recordingVideo: $('recordingVideo'),
+  recordingVideoBox: $('recordingVideoBox'),
+  currentQText: $('currentQText'),
+  recTimer: $('recTimer'),
+  prepPhase: $('prepPhase'),
+  recordingPhase: $('recordingPhase'),
+  actionPhase: $('actionPhase'),
+  prepCountdown: $('prepCountdown'),
+  btnStartRec: $('btnStartRec'),
+  btnNextQuestion: $('btnNextQuestion'),
+
+  // Review
+  reviewList: $('reviewList'),
+  btnReRecord: $('btnReRecord'),
+  btnSubmit: $('btnSubmit'),
+
+  // Complete
+  completeSummary: $('completeSummary'),
+  btnDownloadAll: $('btnDownloadAll'),
+  btnReset: $('btnReset'),
+  btnUploadOSS: $('btnUploadOSS'),
+  ossUploadArea: $('ossUploadArea'),
+  ossProgressBar: $('ossProgressBar'),
+  ossUploadStatus: $('ossUploadStatus'),
+  ossResultArea: $('ossResultArea'),
+  ossUrls: $('ossUrls'),
+  btnCopyUrls: $('btnCopyUrls'),
+
+  // OSS Config
+  ossToggle: $('ossToggle'),
+  ossConfigPanel: $('ossConfigPanel'),
+  ossBucket: $('ossBucket'),
+  ossRegion: $('ossRegion'),
+  ossAccessKeyId: $('ossAccessKeyId'),
+  ossAccessKeySecret: $('ossAccessKeySecret'),
+  ossPrefix: $('ossPrefix'),
+  ossToggleSecret: $('ossToggleSecret'),
+  btnTestOSS: $('btnTestOSS'),
+  ossTestResult: $('ossTestResult'),
+
+  toast: $('toast'),
+};
+
+// ========================
+// Utilities
+// ========================
+function fmtTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function showToast(msg, dur=2500) {
+  el.toast.textContent = msg;
+  el.toast.classList.add('show');
+  clearTimeout(el.toast._hide);
+  el.toast._hide = setTimeout(() => el.toast.classList.remove('show'), dur);
+}
+
+function setStep(n) {
+  state.step = n;
+  el.steps.forEach((s, i) => {
+    s.classList.toggle('active', i === n);
+    s.classList.toggle('done', i < n);
+  });
+  el.sections.forEach(s => s.classList.remove('active'));
+  const ids = ['secSetup','secInterview','secReview','secComplete'];
+  const target = $(ids[n]);
+  if (target) target.classList.add('active');
+  const labels = ['准备阶段','面试中','回顾中','已完成'];
+  el.stepLabel.textContent = labels[n] || '';
+}
+
+function stopMedia() {
+  if (state.stream) {
+    state.stream.getTracks().forEach(t => t.stop());
+    state.stream = null;
+  }
+  if (el.setupVideo.srcObject) {
+    el.setupVideo.srcObject = null;
+  }
+  if (el.recordingVideo.srcObject) {
+    el.recordingVideo.srcObject = null;
+  }
+}
+
+// ========================
+// Device Check
+// ========================
+async function checkDevices() {
+  el.camCheck.querySelector('.status-text').textContent = '请求中...';
+  el.camCheck.querySelector('.status-text').style.color = '#7a8a7e';
+  el.micCheck.querySelector('.status-text').textContent = '请求中...';
+  el.micCheck.querySelector('.status-text').style.color = '#7a8a7e';
+
+  try {
+    stopMedia();
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    state.stream = stream;
+
+    // Show preview
+    el.setupVideoBox.style.display = 'block';
+    el.setupVideo.srcObject = stream;
+    await el.setupVideo.play();
+
+    // Check tracks
+    const hasVideo = stream.getVideoTracks().length > 0;
+    const hasAudio = stream.getAudioTracks().length > 0;
+
+    el.camCheck.querySelector('.status-text').textContent = hasVideo ? '✅ 正常' : '❌ 未检测到';
+    el.camCheck.querySelector('.status-text').style.color = hasVideo ? '#10b981' : '#ef4444';
+    el.micCheck.querySelector('.status-text').textContent = hasAudio ? '✅ 正常' : '❌ 未检测到';
+    el.micCheck.querySelector('.status-text').style.color = hasAudio ? '#10b981' : '#ef4444';
+
+    if (hasVideo && hasAudio) {
+      el.btnStartInterview.disabled = false;
+      showToast('✅ 摄像头和麦克风均正常工作！', 2000);
+    } else {
+      el.btnStartInterview.disabled = true;
+      showToast('⚠️ 设备检测不完整，请检查权限', 3000);
+    }
+  } catch (err) {
+    console.error('Device check error:', err);
+    el.camCheck.querySelector('.status-text').textContent = '❌ 无法访问';
+    el.camCheck.querySelector('.status-text').style.color = '#ef4444';
+    el.micCheck.querySelector('.status-text').textContent = '❌ 无法访问';
+    el.micCheck.querySelector('.status-text').style.color = '#ef4444';
+    el.btnStartInterview.disabled = true;
+    let msg = '❌ 无法访问摄像头或麦克风';
+    if (err.name === 'NotAllowedError') msg = '⛔ 权限被拒绝，请在浏览器设置中允许摄像头和麦克风';
+    else if (err.name === 'NotFoundError') msg = '🔍 未找到摄像头或麦克风设备';
+    showToast(msg, 4000);
+  }
+}
+
+// ========================
+// Question List Render
+// ========================
+function renderQuestionList() {
+  el.questionList.innerHTML = QUESTIONS.map((q, i) => {
+    const rec = state.recordings.find(r => r.questionIdx === i);
+    const isDone = !!rec;
+    const isActive = i === state.currentQIdx;
+    const cls = isDone ? 'question-item done' : isActive ? 'question-item active-q' : 'question-item';
+    const status = isDone ? '✅ 已录制' : isActive ? '◀ 当前' : '等待...';
+    return `<div class="${cls}" data-idx="${i}">
+      <div class="q-num">${i + 1}</div>
+      <div class="q-body">
+        <div class="q-text">${q.text}</div>
+        <div class="q-meta">⏱ 准备 ${q.prep}s · 回答 ${q.duration}s</div>
+      </div>
+      <div class="q-status">${status}</div>
+    </div>`;
+  }).join('');
+}
+
+// ========================
+// Interview Logic
+// ========================
+async function startInterview() {
+  state.name = el.candidateName.value.trim();
+  state.email = el.candidateEmail.value.trim();
+  if (!state.name) {
+    showToast('请输入姓名', 2000);
+    return;
+  }
+
+  state.recordings = [];
+  state.currentQIdx = 0;
+  renderQuestionList();
+
+  // Stop setup preview, start recording preview
+  if (state.stream) {
+    state.stream.getTracks().forEach(t => t.stop());
+    state.stream = null;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    state.stream = stream;
+    el.recordingVideo.srcObject = stream;
+    el.recordingVideo.muted = true; // prevent feedback
+    await el.recordingVideo.play();
+
+    setStep(1);
+    showNextQuestion();
+  } catch (err) {
+    showToast('❌ 无法开启摄像头/麦克风', 3000);
+  }
+}
+
+function showNextQuestion() {
+  if (state.currentQIdx >= QUESTIONS.length) {
+    // All done
+    setStep(2);
+    showReview();
+    return;
+  }
+
+  const q = QUESTIONS[state.currentQIdx];
+  el.currentQText.textContent = `第 ${state.currentQIdx + 1} 题 / 共 ${QUESTIONS.length} 题：${q.text}`;
+  renderQuestionList();
+  el.btnStartRec.classList.remove('hidden');
+  el.btnNextQuestion.classList.add('hidden');
+
+  // Reset phases
+  el.prepPhase.classList.remove('hidden');
+  el.recordingPhase.classList.add('hidden');
+  el.recTimer.textContent = fmtTime(0);
+  el.recTimer.className = 'timer';
+
+  state.isRecording = false;
+  state.isPrepping = false;
+  clearInterval(state.prepTimerId);
+  clearInterval(state.recTimerId);
+
+  // Setup prep
+  state.prepSecondsLeft = q.prep;
+  el.prepCountdown.textContent = q.prep;
+}
+
+function beginPrepAndRecord() {
+  const q = QUESTIONS[state.currentQIdx];
+  if (!q) return;
+
+  el.btnStartRec.disabled = true;
+  state.isPrepping = true;
+  state.prepSecondsLeft = q.prep;
+  el.prepCountdown.textContent = q.prep;
+
+  // Start prep countdown
+  clearInterval(state.prepTimerId);
+  state.prepTimerId = setInterval(() => {
+    state.prepSecondsLeft--;
+    el.prepCountdown.textContent = state.prepSecondsLeft;
+    if (state.prepSecondsLeft <= 0) {
+      clearInterval(state.prepTimerId);
+      state.isPrepping = false;
+      startRecording();
+    }
+  }, 1000);
+}
+
+async function startRecording() {
+  if (!state.stream) return;
+
+  el.prepPhase.classList.add('hidden');
+  el.recordingPhase.classList.remove('hidden');
+
+  const q = QUESTIONS[state.currentQIdx];
+  state.recSecondsLeft = q.duration;
+  state.recordedChunks = [];
+  state.isRecording = true;
+
+  // Create MediaRecorder
+  try {
+    // Try to get a supported mime type
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+      ? 'video/webm;codecs=vp9,opus'
+      : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+        ? 'video/webm;codecs=vp8,opus'
+        : 'video/webm';
+
+    state.mediaRecorder = new MediaRecorder(state.stream, { mimeType });
+    state.mediaRecorder.ondataavailable = e => {
+      if (e.data.size > 0) state.recordedChunks.push(e.data);
+    };
+    state.mediaRecorder.onstop = () => {
+      finishRecording();
+    };
+    state.mediaRecorder.start(1000); // collect data every second
+  } catch (err) {
+    console.error('MediaRecorder error:', err);
+    showToast('❌ 录制初始化失败: ' + err.message, 3000);
+    state.isRecording = false;
+    return;
+  }
+
+  // Recording timer
+  clearInterval(state.recTimerId);
+  state.recTimerId = setInterval(() => {
+    state.recSecondsLeft--;
+    el.recTimer.textContent = fmtTime(state.recSecondsLeft);
+
+    // Color coding
+    if (state.recSecondsLeft <= 5) {
+      el.recTimer.className = 'timer danger';
+    } else if (state.recSecondsLeft <= 15) {
+      el.recTimer.className = 'timer warning';
+    }
+
+    if (state.recSecondsLeft <= 0) {
+      clearInterval(state.recTimerId);
+      stopRecording();
+    }
+  }, 1000);
+}
+
+function stopRecording() {
+  if (state.mediaRecorder && state.mediaRecorder.state === 'recording') {
+    state.mediaRecorder.stop();
+  }
+  state.isRecording = false;
+  clearInterval(state.recTimerId);
+}
+
+function finishRecording() {
+  const q = QUESTIONS[state.currentQIdx];
+  const blob = new Blob(state.recordedChunks, { type: state.mediaRecorder?.mimeType || 'video/webm' });
+  const url = URL.createObjectURL(blob);
+
+  // Replace or add
+  const existing = state.recordings.findIndex(r => r.questionIdx === state.currentQIdx);
+  if (existing >= 0) {
+    URL.revokeObjectURL(state.recordings[existing].url);
+    state.recordings[existing] = { blob, url, question: q.text, questionIdx: state.currentQIdx, duration: q.duration - Math.max(0, state.recSecondsLeft) };
+  } else {
+    state.recordings.push({ blob, url, question: q.text, questionIdx: state.currentQIdx, duration: q.duration - Math.max(0, state.recSecondsLeft) });
+  }
+
+  renderQuestionList();
+
+  // Show action buttons
+  el.btnStartRec.classList.add('hidden');
+  el.btnNextQuestion.classList.remove('hidden');
+  el.recordingPhase.classList.add('hidden');
+
+  // Show success
+  showToast(`✅ 第 ${state.currentQIdx + 1} 题录制完成！`, 2000);
+}
+
+function goNextQuestion() {
+  state.currentQIdx++;
+  showNextQuestion();
+  el.btnStartRec.disabled = false;
+
+  // scroll to question list
+  el.questionList.querySelector(`[data-idx="${state.currentQIdx}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ========================
+// Review
+// ========================
+function showReview() {
+  // Stop recording stream
+  stopMedia();
+
+  if (state.recordings.length === 0) {
+    el.reviewList.innerHTML = '<p style="color:#7a8a7e">暂无录制内容</p>';
+    return;
+  }
+
+  el.reviewList.innerHTML = state.recordings
+    .sort((a, b) => a.questionIdx - b.questionIdx)
+    .map(r => {
+      return `<div class="review-item" data-idx="${r.questionIdx}">
+        <video src="${r.url}" controls playsinline preload="metadata"></video>
+        <div class="review-meta">
+          <div><strong>第 ${r.questionIdx + 1} 题</strong><br><span style="font-size:0.85rem;color:#5a6a7e">${r.question}</span></div>
+          <div style="display:flex; gap:0.5rem; align-items:center">
+            <span style="font-size:0.85rem;color:#7a8a7e">⏱ ${fmtTime(r.duration)}</span>
+            <button class="btn btn-danger btn-sm re-record-btn">↻ 重录</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+  // Attach re-record handlers
+  document.querySelectorAll('.re-record-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.review-item');
+      const idx = parseInt(item.dataset.idx);
+      reRecord(idx);
+    });
+  });
+}
+
+function reRecord(idx) {
+  state.currentQIdx = idx;
+  setStep(1);
+  // Re-acquire stream
+  navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    .then(stream => {
+      state.stream = stream;
+      el.recordingVideo.srcObject = stream;
+      el.recordingVideo.muted = true;
+      el.recordingVideo.play();
+      showNextQuestion();
+    })
+    .catch(err => showToast('❌ 无法开启摄像头', 2000));
+}
+
+function submitAll() {
+  if (state.recordings.length < QUESTIONS.length) {
+    const missing = QUESTIONS.length - state.recordings.length;
+    if (!confirm(`还有 ${missing} 题未录制，确定提交吗？`)) return;
+  }
+
+  setStep(3);
+  showComplete();
+}
+
+// ========================
+// Complete
+// ========================
+function showComplete() {
+  const total = state.recordings.length;
+  const totalDuration = state.recordings.reduce((s, r) => s + r.duration, 0);
+  el.completeSummary.innerHTML = `
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem; text-align:center">
+      <div style="background:#f0fdf4; padding:1rem; border-radius:10px">
+        <div style="font-size:1.8rem; font-weight:700; color:#10b981">${total}</div>
+        <div style="font-size:0.85rem; color:#5a6a7e">录制题数</div>
+      </div>
+      <div style="background:#eef2f7; padding:1rem; border-radius:10px">
+        <div style="font-size:1.8rem; font-weight:700; color:#1a2332">${fmtTime(totalDuration)}</div>
+        <div style="font-size:0.85rem; color:#5a6a7e">总时长</div>
+      </div>
+      <div style="background:#fef3c7; padding:1rem; border-radius:10px">
+        <div style="font-size:1.8rem; font-weight:700; color:#f59e0b">${state.name}</div>
+        <div style="font-size:0.85rem; color:#5a6a7e">候选人</div>
+      </div>
+    </div>
+    <div class="mt-1 text-muted text-center">${state.email ? `📧 ${state.email}` : ''}</div>
+  `;
+
+  // Show/hide OSS button based on config
+  const cfg = getOSSConfig();
+  const hasConfig = cfg.bucket && cfg.region && cfg.accessKeyId && cfg.accessKeySecret;
+  if (hasConfig && !el.ossResultArea.classList.contains('hidden')) {
+    el.btnUploadOSS.classList.add('hidden');
+  } else if (hasConfig) {
+    el.btnUploadOSS.classList.remove('hidden');
+  } else {
+    el.btnUploadOSS.classList.add('hidden');
+  }
+}
+
+function downloadAll() {
+  if (state.recordings.length === 0) {
+    showToast('暂无录制内容', 2000);
+    return;
+  }
+
+  const sorted = [...state.recordings].sort((a,b) => a.questionIdx - b.questionIdx);
+
+  // Download one by one (browsers won't batch download via JS)
+  sorted.forEach((r, i) => {
+    const a = document.createElement('a');
+    a.href = r.url;
+    const safeName = state.name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5_-]/g, '');
+    a.download = `面试_${safeName}_第${r.questionIdx+1}题.webm`;
+    // Trigger with slight delay to avoid browser blocking multiple downloads
+    setTimeout(() => a.click(), i * 500);
+  });
+
+  showToast(`⬇ 正在下载 ${sorted.length} 个视频文件...`, 3000);
+}
+
+function resetAll() {
+  if (!confirm('确定要重新开始吗？当前录制数据将丢失。')) return;
+  stopMedia();
+  state.recordings.forEach(r => URL.revokeObjectURL(r.url));
+  state.recordings = [];
+  state.currentQIdx = 0;
+  state.recordedChunks = [];
+  clearInterval(state.prepTimerId);
+  clearInterval(state.recTimerId);
+  state.isRecording = false;
+  state.isPrepping = false;
+  state.ossClient = null;
+  state.ossConfigured = false;
+  setStep(0);
+  el.btnStartInterview.disabled = true;
+  el.camCheck.querySelector('.status-text').textContent = '未检测';
+  el.camCheck.querySelector('.status-text').style.color = '#7a8a7e';
+  el.micCheck.querySelector('.status-text').textContent = '未检测';
+  el.micCheck.querySelector('.status-text').style.color = '#7a8a7e';
+  el.setupVideoBox.style.display = 'none';
+  el.btnStartRec.disabled = false;
+  el.ossUploadArea.classList.add('hidden');
+  el.ossResultArea.classList.add('hidden');
+  el.btnUploadOSS.classList.remove('hidden');
+}
+
+// ========================
+// OSS Functions
+// ========================
+
+function getOSSConfig() {
+  return {
+    bucket: el.ossBucket.value.trim(),
+    region: el.ossRegion.value.trim(),
+    accessKeyId: el.ossAccessKeyId.value.trim(),
+    accessKeySecret: el.ossAccessKeySecret.value.trim(),
+    prefix: el.ossPrefix.value.trim() || 'interviews/'
+  };
+}
+
+function validateOSSConfig(cfg) {
+  if (!cfg.bucket) return '请输入 Bucket 名称';
+  if (!cfg.region) return '请输入 Region';
+  if (!cfg.accessKeyId) return '请输入 AccessKey ID';
+  if (!cfg.accessKeySecret) return '请输入 AccessKey Secret';
+  return null;
+}
+
+async function initOSSClient() {
+  const cfg = getOSSConfig();
+  const err = validateOSSConfig(cfg);
+  if (err) throw new Error(err);
+
+  state.ossClient = new OSS({
+    bucket: cfg.bucket,
+    region: cfg.region,
+    accessKeyId: cfg.accessKeyId,
+    accessKeySecret: cfg.accessKeySecret,
+    secure: true
+  });
+  state.ossConfigured = true;
+  return cfg;
+}
+
+async function testOSSConnection() {
+  el.ossTestResult.innerHTML = '<div class="oss-status" style="background:#eef2f7;color:#1a2332">⏳ 测试中...</div>';
+
+  try {
+    const cfg = await initOSSClient();
+    // Try to list objects (limited to 1) to verify credentials
+    await state.ossClient.list({ 'max-keys': 1 });
+    el.ossTestResult.innerHTML = '<div class="oss-status ok">✅ OSS 连接成功！Bucket: ' + cfg.bucket + '</div>';
+    showToast('✅ OSS 配置正常！', 2000);
+  } catch (err) {
+    console.error('OSS test failed:', err);
+    state.ossClient = null;
+    state.ossConfigured = false;
+    let msg = '❌ 连接失败: ' + (err.message || err);
+    if (err.code === 'InvalidAccessKeyId') msg = '❌ AccessKey ID 无效';
+    else if (err.code === 'SignatureDoesNotMatch') msg = '❌ AccessKey Secret 错误';
+    else if (err.code === 'NoSuchBucket') msg = '❌ Bucket 不存在';
+    el.ossTestResult.innerHTML = '<div class="oss-status err">' + msg + '</div>';
+    showToast(msg, 3000);
+  }
+}
+
+async function uploadAllToOSS() {
+  if (state.ossUploading) return;
+
+  let cfg;
+  try {
+    cfg = await initOSSClient();
+  } catch (err) {
+    showToast('⚠️ ' + err.message + '，请先在准备页配置 OSS', 3000);
+    return;
+  }
+
+  state.ossUploading = true;
+  el.btnUploadOSS.disabled = true;
+  el.btnUploadOSS.classList.add('hidden');
+  el.ossUploadArea.classList.remove('hidden');
+  el.ossResultArea.classList.add('hidden');
+
+  const sorted = [...state.recordings].sort((a,b) => a.questionIdx - b.questionIdx);
+  const total = sorted.length;
+  const safeName = state.name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5_-]/g, '').substring(0, 30);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+  const urls = [];
+
+  for (let i = 0; i < sorted.length; i++) {
+    const r = sorted[i];
+    const idx = r.questionIdx;
+    const fileName = `${safeName}_Q${idx+1}_${timestamp}.webm`;
+    const objectKey = `${cfg.prefix.replace(/\/$/, '')}/${timestamp}/${fileName}`;
+    const fileSize = (r.blob.size / 1024 / 1024).toFixed(1);
+
+    el.ossUploadStatus.textContent = `正在上传 (${i+1}/${total})：第 ${idx+1} 题 (${fileSize} MB)...`;
+    el.ossProgressBar.style.width = `${((i) / total) * 100}%`;
+
+    try {
+      const result = await state.ossClient.put(objectKey, r.blob, {
+        headers: { 'Content-Type': 'video/webm' }
+      });
+      urls.push({ idx: idx + 1, url: result.url || result.res?.requestUrls?.[0] || `https://${cfg.bucket}.${cfg.region}.aliyuncs.com/${objectKey}` });
+    } catch (err) {
+      console.error('OSS upload error for question', idx + 1, err);
+      showToast(`❌ 第 ${idx+1} 题上传失败: ${err.message || err}`, 4000);
+      el.ossUploadStatus.textContent = `❌ 第 ${idx+1} 题上传失败`;
+      state.ossUploading = false;
+      el.btnUploadOSS.disabled = false;
+      el.btnUploadOSS.classList.remove('hidden');
+      return;
+    }
+  }
+
+  // All done
+  el.ossProgressBar.style.width = '100%';
+  el.ossUploadStatus.textContent = '✅ 全部上传完成！';
+
+  // Show result area
+  setTimeout(() => {
+    el.ossUploadArea.classList.add('hidden');
+    el.ossResultArea.classList.remove('hidden');
+    el.ossUrls.innerHTML = urls.map(u =>
+      `<div style="margin-bottom:0.5rem"><strong>第 ${u.idx} 题</strong>:<br><a href="${u.url}" target="_blank" style="color:#10b981">${u.url}</a></div>`
+    ).join('');
+    showToast(`✅ ${total} 个视频已全部上传到 OSS！`, 3000);
+  }, 800);
+
+  state.ossUploading = false;
+  el.btnUploadOSS.disabled = false;
+}
+
+function copyOSSUrls() {
+  const links = el.ossUrls.querySelectorAll('a');
+  const text = Array.from(links).map((a, i) => `第 ${i+1} 题: ${a.href}`).join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('📋 OSS 链接已复制到剪贴板！', 2000);
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('📋 OSS 链接已复制！', 2000);
+  });
+}
+
+// ========================
+// Event Binds
+// ========================
+el.btnCheckDevices.addEventListener('click', checkDevices);
+
+el.btnStartInterview.addEventListener('click', startInterview);
+
+el.btnStartRec.addEventListener('click', beginPrepAndRecord);
+
+el.btnNextQuestion.addEventListener('click', goNextQuestion);
+
+el.btnReRecord.addEventListener('click', () => {
+  setStep(2); // back to review
+});
+
+el.btnSubmit.addEventListener('click', submitAll);
+
+el.btnDownloadAll.addEventListener('click', downloadAll);
+
+el.btnReset.addEventListener('click', resetAll);
+
+// OSS Event Binds
+el.ossToggle.addEventListener('click', () => {
+  el.ossConfigPanel.classList.toggle('open');
+  const arrow = el.ossToggle.querySelector('span:last-child');
+  arrow.textContent = el.ossConfigPanel.classList.contains('open') ? '收起 ▴' : '展开 ▾';
+});
+
+el.ossToggleSecret.addEventListener('click', () => {
+  const input = el.ossAccessKeySecret;
+  input.type = input.type === 'password' ? 'text' : 'password';
+  el.ossToggleSecret.textContent = input.type === 'password' ? '👁️' : '🙈';
+});
+
+el.btnTestOSS.addEventListener('click', testOSSConnection);
+
+el.btnUploadOSS.addEventListener('click', uploadAllToOSS);
+
+el.btnCopyUrls.addEventListener('click', copyOSSUrls);
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && state.step === 0 && !el.btnStartInterview.disabled) {
+    startInterview();
+  }
+});
+
+// Auto-check devices on page load
+window.addEventListener('load', () => {
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    checkDevices();
+  } else {
+    el.camCheck.querySelector('.status-text').textContent = '❌ 不支持';
+    el.camCheck.querySelector('.status-text').style.color = '#ef4444';
+    el.micCheck.querySelector('.status-text').textContent = '❌ 不支持';
+    el.micCheck.querySelector('.status-text').style.color = '#ef4444';
+    showToast('⚠️ 您的浏览器不支持摄像头/麦克风，请使用最新版 Chrome 或 Edge', 5000);
+  }
+});
+
+</script>
+</body>
+</html>
